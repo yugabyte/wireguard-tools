@@ -1,13 +1,14 @@
 #!/bin/bash
 # Author: Milos Buncic
-# Date: 2019/09/25
+# Edited: Bharat Mukheja
+# Date: 2021/12/29
 # Description: Wireguard config generator
 
 ### Import global variables from configuration file
-CONFIG_FILE="${HOME}/wireguard/wgcg/wgcg.conf"
+CONFIG_FILE="/etc/wireguard/wgcg/wgcg.conf"
 for CF in "${WGCG_CONFIG_FILE}" "${CONFIG_FILE}"; do
   if [[ -f "${CF}" ]]; then
-    CONFIG_FILE="${CF}"
+    CONFIG_FILE="${CF}" #Clever way to overwrite the existing variable of CONFIG_FILE in case an external value for WGCG_CONFIG_FILE is passed
     source "${CONFIG_FILE}"
     break
   fi
@@ -92,8 +93,15 @@ help() {
   [[ -n ${SERVER_SSH_PORT} ]] && echo -e "  WGCG_SERVER_SSH_PORT=${GREEN}\"${SERVER_SSH_PORT}\"${NONE}"
   [[ -n ${CLIENT_DNS_IPS} ]] && echo -e "  WGCG_CLIENT_DNS_IPS=${GREEN}\"${CLIENT_DNS_IPS}\"${NONE}"
   [[ -n ${CLIENT_ALLOWED_IPS} ]] && echo -e "  WGCG_CLIENT_ALLOWED_IPS=${GREEN}\"${CLIENT_ALLOWED_IPS}\"${NONE}"
+  [[ -n ${SERVER_SSH_KEY_FILE} ]] && echo -e "  SERVER_SSH_KEY_FILE=${GREEN}\"${SERVER_SSH_KEY_FILE}\"${NONE}"
   echo -e "  WGCG_WORKING_DIR=${GREEN}\"${WORKING_DIR}\"${NONE}"
 }
+
+if [[ -n ${SERVER_SSH_KEY_FILE} ]]; then
+  SERVER_SSH_CMD="ssh -i ${SERVER_SSH_KEY_FILE} -p ${server_ssh_port} ec2-user@${server_ssh_ip}"
+else
+  SERVER_SSH_CMD="ssh -p ${server_ssh_port} ec2-user@${server_ssh_ip}"
+fi
 
 
 # Check mandatory global variables
@@ -255,11 +263,7 @@ wg_sysprep() {
   local server_prepared="${WORKING_DIR}/.sysprepared"
 
   if [[ -f ${server_prepared} ]]; then
-    echo -e "${YELLOW}WARNING${NONE}: System has already been prepared to run Wireguard!"
-    echo -ne "Are you sure you want to run it again? (${GREEN}yes${NONE}/${RED}no${NONE}): "
-    read answer
-
-    [[ ${answer} != "yes" ]] && exit 1
+    exit 1
   fi
 
   if [[ ! -f ${sysprep_module} ]]; then
@@ -273,10 +277,10 @@ wg_sysprep() {
   fi
 
   local sysprep_module_script="${sysprep_module##*/}"
-  cat ${sysprep_module} | ssh -p ${server_ssh_port} root@${server_ssh_ip} "
-    cat > /usr/local/bin/${sysprep_module_script} && \
-    chmod +x /usr/local/bin/${sysprep_module_script} && \
-    /usr/local/bin/${sysprep_module_script}
+  cat ${sysprep_module} | ${SERVER_SSH_CMD} "
+    sudo cat > /usr/local/bin/${sysprep_module_script} && \
+    sudo chmod +x /usr/local/bin/${sysprep_module_script} && \
+    sudo /usr/local/bin/${sysprep_module_script}
   "
   if [[ ${?} -ne 0 ]]; then
     echo -e "${RED}ERROR${NONE}: Something went wrong, execution of sysprep module ${BLUE}${sysprep_module_script}${NONE} failed!"
@@ -615,21 +619,21 @@ wg_sync() {
     exit 1
   fi
 
-  ssh -p ${server_ssh_port} root@${server_ssh_ip} "which wg-quick &> /dev/null"
+  ${SERVER_SSH_CMD} "which wg-quick &> /dev/null"
   if [[ ${?} -ne 0 ]]; then
     echo -e "${YELLOW}WARNING${NONE}: It looks like ${GREEN}wireguard-tools${NONE} package isn't installed, please run script with ${GREEN}--sysprep${NONE} option first"
     exit 1
   fi
 
-  cat ${server_config} | ssh -p ${server_ssh_port} root@${server_ssh_ip} "cat > /etc/wireguard/${server_name}.conf && chmod 600 /etc/wireguard/${server_name}.conf"
+  cat ${server_config} | ${SERVER_SSH_CMD} "sudo cat > /etc/wireguard/${server_name}.conf && sudo chmod 600 /etc/wireguard/${server_name}.conf"
   if [[ ${?} -eq 0 ]]; then
-    ssh -p ${server_ssh_port} root@${server_ssh_ip} "
-      if ! systemctl is-enabled wg-quick@${server_name}.service &> /dev/null; then
-        systemctl enable --now wg-quick@${server_name}.service &> /dev/null
+    ${SERVER_SSH_CMD} "
+      if ! sudo systemctl is-enabled wg-quick@${server_name}.service &> /dev/null; then
+        sudo systemctl enable --now wg-quick@${server_name}.service &> /dev/null
       fi
 
-      if systemctl is-active wg-quick@${server_name}.service &> /dev/null; then
-        wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf)
+      if sudo systemctl is-active wg-quick@${server_name}.service &> /dev/null; then
+        sudo wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf)
       fi
     "
   else
