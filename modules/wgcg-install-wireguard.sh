@@ -1,6 +1,7 @@
 #!/bin/bash
 # Author: Milos Buncic
-# Date: 2019/10/01
+# Edited: Bharat Mukheja
+# Date: 2021/12/29
 # Description: Prepare Wireguard server
 
 set -e
@@ -9,9 +10,10 @@ echo "Installing Wireguard and required dependencies on the server, please wait.
 echo
 
 # Installing wireguard kernel module and required dependencies
-# DEPRECATION NOTICE: WireGuard packages have now moved into official Ubuntu repository (Ubuntu 20.04, 19.10, 18.04, and 16.04)
-#add-apt-repository ppa:wireguard/wireguard
-apt-get update && apt-get install -y linux-headers-$(uname -r) wireguard
+yum update && yum install -y linux-headers-$(uname -r) epel-release firewalld
+yum config-manager --set-enabled PowerTools
+yum copr enable jdoss/wireguard
+yum install wireguard-dkms wireguard-tools
 mkdir -p /etc/wireguard
 
 # Allow module to be loaded at boot time
@@ -35,16 +37,18 @@ PRIVATE_INTERFACE="$(ip a | awk -F'[ :]' '/^2:/ {print $3}')"
 rules() {
   local action=\${1}
 
-  iptables -t nat \${action} POSTROUTING -o \${PRIVATE_INTERFACE} -j MASQUERADE
+  firewall-cmd --permanent --\${action}-rich-rule='rule family="ipv4" source address="192.168.16.0/20" masquerade'
+  firewall-cmd --permanent --\${action}-rich-rule='rule family="ipv4" source address="192.168.32.0/20" masquerade'
+  firewall-cmd --reload
 }
 
 case \${1} in
   'add')
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    rules -A
+    rules add
   ;;
   'del')
-    rules -D
+    rules remove
     echo 0 > /proc/sys/net/ipv4/ip_forward
   ;;
   *)
