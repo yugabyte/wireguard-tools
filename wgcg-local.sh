@@ -38,12 +38,22 @@ CLIENT_ALLOWED_IPS=${WGCG_CLIENT_ALLOWED_IPS}
 # Working directory where all generated files will be stored
 WORKING_DIR=${WGCG_WORKING_DIR}
 
-### Text colors
-RED="\033[31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-BLUE="\033[34m"
-NONE="\033[0m"
+# Don't show colors by default, set a flag for showing colors
+if [ "$SHOW_COLORED_OUTPUT" = true ]; then
+  ### Text colors
+  RED="\033[31m"
+  GREEN="\033[32m"
+  YELLOW="\033[33m"
+  BLUE="\033[34m"
+  NONE="\033[0m"
+else
+  ### Text colors
+  RED=""
+  GREEN=""
+  YELLOW=""
+  BLUE=""
+  NONE=""
+fi
 
 ### Dependencies required by the script
 DEPS=(
