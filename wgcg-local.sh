@@ -70,7 +70,7 @@ help() {
   echo -e "  ${GREEN}$(basename ${0})${NONE} options"
   echo
   echo -e "${BLUE}Options${NONE}:"
-  echo -e "  ${GREEN}-P${NONE}|${GREEN}--sysprep${NONE} filename.sh                                  Install WireGuard kernel module, required tools and scripts (will establish SSH connection with server)"
+  echo -e "  ${GREEN}-P${NONE}|${GREEN}--sysprep${NONE} filename.sh                                  Install WireGuard kernel module, required tools and scripts"
   echo -e "  ${GREEN}-s${NONE}|${GREEN}--add-server-config${NONE}                                    Generate server configuration"
   echo -e "  ${GREEN}-c${NONE}|${GREEN}--add-client-config${NONE} client_name client_wg_ip           Generate client configuration"
   echo -e "  ${GREEN}-B${NONE}|${GREEN}--add-clients-batch${NONE} filename.csv[:rewrite|:norewrite]  Generate configuration for multiple clients in batch mode"
@@ -81,7 +81,7 @@ help() {
   echo -e "  ${GREEN}-r${NONE}|${GREEN}--rm-client-config${NONE} client_name                         Remove client configuration"
   echo -e "  ${GREEN}-q${NONE}|${GREEN}--gen-qr-code${NONE} client_name [-]                          Generate QR code (PNG format) from client configuration file, if - is used, QR code will be printed out on stdout instead"
   echo -e "  ${GREEN}-l${NONE}|${GREEN}--list-used-ips${NONE}                                        List all clients IPs that are currently in use"
-  echo -e "  ${GREEN}-S${NONE}|${GREEN}--sync${NONE}                                                 Synchronize server configuration (will establish SSH connection with server)"
+  echo -e "  ${GREEN}-S${NONE}|${GREEN}--sync${NONE}                                                 Synchronize server configuration"
   echo -e "  ${GREEN}-h${NONE}|${GREEN}--help${NONE}                                                 Show this help"
   echo
   echo -e "${BLUE}Current default options${NONE}:"
@@ -257,8 +257,6 @@ decrypt() {
 # Prepare system to run Wireguard
 wg_sysprep() {
   local sysprep_module="${1}"
-  local server_ssh_ip="${2}"
-  local server_ssh_port="${3:-22}"
 
   local server_prepared="${WORKING_DIR}/.sysprepared"
 
@@ -271,17 +269,11 @@ wg_sysprep() {
     exit 1
   fi
 
-  if ! validator ipaddress ${server_ssh_ip} && ! validator fqdn ${server_ssh_ip}; then
-    echo -e "${RED}ERROR${NONE}: ${RED}${server_ssh_ip}${NONE} is not valid IP address nor FQDN!"
-    exit 1
-  fi
-
   local sysprep_module_script="${sysprep_module##*/}"
-  cat ${sysprep_module} | ${SERVER_SSH_CMD} "
-    sudo cat > /usr/local/bin/${sysprep_module_script} && \
-    sudo chmod +x /usr/local/bin/${sysprep_module_script} && \
-    sudo /usr/local/bin/${sysprep_module_script}
-  "
+  sudo cat ${sysprep_module} > /usr/local/bin/${sysprep_module_script} && \
+  sudo chmod +x /usr/local/bin/${sysprep_module_script} && \
+  sudo /usr/local/bin/${sysprep_module_script}
+
   if [[ ${?} -ne 0 ]]; then
     echo -e "${RED}ERROR${NONE}: Something went wrong, execution of sysprep module ${BLUE}${sysprep_module_script}${NONE} failed!"
     exit 1
@@ -393,8 +385,6 @@ gen_server_config() {
 Address = ${server_wg_ip}/${cidr}
 ListenPort = ${server_port}
 PrivateKey = $(head -1 ${server_private_key})
-PostUp = /usr/local/bin/wgfw.sh add
-PostDown = /usr/local/bin/wgfw.sh del
 EOF
 
   touch ${server_generated}
@@ -604,8 +594,6 @@ wg_list_used_ips() {
 # Sync configuration with server
 wg_sync() {
   local server_name="${1}"
-  local server_ssh_ip="${2}"
-  local server_ssh_port="${3:-22}"
 
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
 
@@ -614,30 +602,25 @@ wg_sync() {
     exit 1
   fi
 
-  if ! validator ipaddress ${server_ssh_ip} && ! validator fqdn ${server_ssh_ip}; then
-    echo -e "${RED}ERROR${NONE}: ${RED}${server_ssh_ip}${NONE} is not valid IP address nor FQDN!"
-    exit 1
-  fi
-
-  ${SERVER_SSH_CMD} "which wg-quick &> /dev/null"
+  which wg-quick &> /dev/null
   if [[ ${?} -ne 0 ]]; then
     echo -e "${YELLOW}WARNING${NONE}: It looks like ${GREEN}wireguard-tools${NONE} package isn't installed, please run script with ${GREEN}--sysprep${NONE} option first"
     exit 1
   fi
 
-  cat ${server_config} | ${SERVER_SSH_CMD} "sudo cat > /etc/wireguard/${server_name}.conf && sudo chmod 600 /etc/wireguard/${server_name}.conf"
+  sudo cat ${server_config} > /etc/wireguard/${server_name}.conf && sudo chmod 600 /etc/wireguard/${server_name}.conf
   if [[ ${?} -eq 0 ]]; then
-    ${SERVER_SSH_CMD} "
-      if ! sudo systemctl is-enabled wg-quick@${server_name}.service &> /dev/null; then
-        sudo systemctl enable --now wg-quick@${server_name}.service &> /dev/null
-      fi
+   
+    if ! sudo systemctl is-enabled wg-quick@${server_name}.service &> /dev/null; then
+      sudo systemctl enable --now wg-quick@${server_name}.service &> /dev/null
+    fi
 
-      if sudo systemctl is-active wg-quick@${server_name}.service &> /dev/null; then
-        sudo wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf)
-      fi
-    "
+    if sudo systemctl is-active wg-quick@${server_name}.service &> /dev/null; then
+      sudo wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf) #TODO - Update this line for centos
+    fi
+    
   else
-    echo -e "${RED}ERROR${NONE}: Syncing configuration ${BLUE}${server_config}${NONE} with server ${BLUE}${server_ssh_ip}${NONE} failed!"
+    echo -e "${RED}ERROR${NONE}: Syncing configuration ${BLUE}${server_config}${NONE} with server failed!"
     exit 1
   fi
 }
