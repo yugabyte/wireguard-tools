@@ -82,7 +82,7 @@ help() {
   echo -e "${BLUE}Options${NONE}:"
   echo -e "  ${GREEN}-P${NONE}|${GREEN}--sysprep${NONE} filename.sh                                  Install WireGuard kernel module, required tools and scripts"
   echo -e "  ${GREEN}-s${NONE}|${GREEN}--add-server-config${NONE}                                    Generate server configuration"
-  echo -e "  ${GREEN}-c${NONE}|${GREEN}--add-client-config${NONE} client_name client_wg_ip           Generate client configuration"
+  echo -e "  ${GREEN}-c${NONE}|${GREEN}--add-client-config${NONE} client_name client_wg_ip client_public_key           Generate client configuration"
   echo -e "  ${GREEN}-B${NONE}|${GREEN}--add-clients-batch${NONE} filename.csv[:rewrite|:norewrite]  Generate configuration for multiple clients in batch mode"
   echo -e "                                                            Supported action modes are 'rewrite' or 'norewrite' (default)"
   echo -e "                                                            'rewrite' action mean regenerate ALL, 'norewrite' mean generate only configs and keys for new clients"
@@ -335,12 +335,13 @@ remove_client_config() {
 # Generate preshared, server and client keys
 gen_keys() {
   local name_prefix="${1}"
+  local public_key="${2}"
 
-  local private_key="${WORKING_DIR}/${name_prefix}-private.key"
-  local public_key="${WORKING_DIR}/${name_prefix}-public.key"
+  #local private_key="${WORKING_DIR}/${name_prefix}-private.key"
+  echo ${public_key} >"${WORKING_DIR}/${name_prefix}-public.key"
   local preshared_key="${WORKING_DIR}/preshared.key"
 
-  wg genkey | tee ${private_key} | wg pubkey > ${public_key}
+  #wg genkey | tee ${private_key} | wg pubkey > ${public_key}
   [[ ! -f ${preshared_key} ]] && wg genpsk > ${preshared_key} 2> /dev/null
   chmod 600 ${private_key} ${preshared_key}
 }
@@ -407,17 +408,18 @@ SKIP_ANSWER=false
 gen_client_config() {
   local client_name="${1}"
   local client_wg_ip="${2}"
-  local server_name="${3}"
-  local server_port="${4}"
-  local server_public_ip="${5}"
+  local client_public_key="${3}"
+  local server_name="${4}"
+  local server_port="${5}"
+  local server_public_ip="${6}"
+  
   local server_wg_ip_cidr server_wg_ip cidr client_config_match server_config_match
 
   local client_dns_ips="${6:-1.1.1.1 1.0.0.1}"
   local client_allowed_ips="${7:-0.0.0.0/0}"
 
   local preshared_key="${WORKING_DIR}/preshared.key"
-  local client_private_key="${WORKING_DIR}/client-${client_name}-private.key"
-  local client_public_key="${WORKING_DIR}/client-${client_name}-public.key"
+  local client_public_key_file="${WORKING_DIR}/client-${client_name}-public.key"
   local client_config="${WORKING_DIR}/client-${client_name}.conf"
   local server_public_key="${WORKING_DIR}/server-${server_name}-public.key"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
@@ -467,7 +469,7 @@ gen_client_config() {
     return 1
   fi
 
-  if [[ -f ${client_private_key} ]]; then
+  if [[ -f ${client_public_key_file} ]]; then
     # Condition will be skipped if function called from the gen_client_config_batch() function
     if [[ ${SKIP_ANSWER} == false ]]; then
       echo -e "${YELLOW}WARNING${NONE}: All files for this client will be regenerated!"
@@ -494,12 +496,12 @@ gen_client_config() {
     fi
   fi
 
-  gen_keys client-${client_name}
+  gen_keys client-${client_name} ${client_public_key}
 
   cat > ${client_config} <<EOF && chmod 600 ${client_config}
 [Interface]
 Address = ${client_wg_ip}/${cidr}
-PrivateKey = $(head -1 ${client_private_key})
+PrivateKey = <Fill this Up>
 DNS = $(echo ${client_dns_ips} | sed -E 's/ +/, /g')
 
 [Peer]
@@ -515,7 +517,7 @@ EOF
 ### ${client_name} - START
 [Peer]
 # friendly_name = ${client_name}
-PublicKey = $(head -1 ${client_public_key})
+PublicKey = $(head -1 ${client_public_key_file})
 PresharedKey = $(head -1 ${preshared_key})
 AllowedIPs = ${client_wg_ip}/32
 ### ${client_name} - END
@@ -649,8 +651,8 @@ case ${1} in
   ;;
   '-c'|'--add-client-config')
     shift
-    # client_name, client_wg_ip, server_name, server_port, server_public_ip
-    gen_client_config ${1:-''} ${2:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
+    # client_name, client_wg_ip, client_public_key, server_name, server_port, server_public_ip
+    gen_client_config ${1:-''} ${2:-''} ${3:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
     [[ ${?} -ne 0 ]] && exit 1
     # client_name
     gen_qr ${1}
