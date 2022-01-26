@@ -1,6 +1,10 @@
 wireguard-tools
 ===============
 
+## Yugabyte note - 
+wgcg-local.sh is the customized version useful for yugabyte purpose. It also removes the ssh and works on local system.
+wgcg.sh is the unmodified from original repo.
+
 Full documentation about manual Wireguard installation and configuration process can be found [here](https://gitlab.com/snippets/1897102).
 
 wgcg.sh
