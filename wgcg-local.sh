@@ -107,12 +107,6 @@ help() {
   echo -e "  WGCG_WORKING_DIR=${GREEN}\"${WORKING_DIR}\"${NONE}"
 }
 
-if [[ -n ${SERVER_SSH_KEY_FILE} ]]; then
-  SERVER_SSH_CMD="ssh -i ${SERVER_SSH_KEY_FILE} -p ${server_ssh_port} ec2-user@${server_ssh_ip}"
-else
-  SERVER_SSH_CMD="ssh -p ${server_ssh_port} ec2-user@${server_ssh_ip}"
-fi
-
 
 # Check mandatory global variables
 check_variables() {
@@ -217,7 +211,7 @@ encrypt() {
   local client_name="${1}"
   local passphrase="${2:-$(genpass)}"
 
-  local client_config="${WORKING_DIR}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
   local client_config_asc="${client_config}.asc"
 
   if [[ ! -f ${client_config} ]]; then
@@ -247,7 +241,7 @@ encrypt() {
 decrypt() {
   local client_name="${1}"
 
-  local client_config="${WORKING_DIR}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
   local client_config_asc="${client_config}.asc"
 
   if [[ ! -f ${client_config_asc} ]]; then
@@ -299,7 +293,7 @@ remove_client_config() {
   local client_name="${1}"
   local server_name="${2}"
 
-  local client_config="${WORKING_DIR}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
 
   if [[ -z ${client_name} ]] || [[ -z ${server_name} ]]; then
@@ -326,7 +320,8 @@ remove_client_config() {
   mv ${server_config}.backup ${server_config}
 
   # Delete config and key files
-  rm -f ${WORKING_DIR}/client-${client_name}{.conf,.conf.png,.conf.asc,-private.key,-public.key}
+  rm -f ${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}{.conf,.conf.png,.conf.asc}
+  rm -f ${WGCG_CLIENT_KEYS_FOLDER}/client-${client_name}{-private.key,-public.key}
 
   echo -e "${GREEN}INFO${NONE}: Client config ${RED}${client_config}${NONE} has been successfully removed!"
 }
@@ -338,7 +333,7 @@ gen_keys() {
   local public_key="${2}"
 
   #local private_key="${WORKING_DIR}/${name_prefix}-private.key"
-  echo ${public_key} >"${WORKING_DIR}/${name_prefix}-public.key"
+  echo ${public_key} >"${WGCG_CLIENT_KEYS_FOLDER}/${name_prefix}-public.key"
   local preshared_key="${WORKING_DIR}/preshared.key"
 
   #wg genkey | tee ${private_key} | wg pubkey > ${public_key}
@@ -419,8 +414,8 @@ gen_client_config() {
   local client_allowed_ips="${7:-0.0.0.0/0}"
 
   local preshared_key="${WORKING_DIR}/preshared.key"
-  local client_public_key_file="${WORKING_DIR}/client-${client_name}-public.key"
-  local client_config="${WORKING_DIR}/client-${client_name}.conf"
+  local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/client-${client_name}-public.key"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
   local server_public_key="${WORKING_DIR}/server-${server_name}-public.key"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
   local server_generated="${WORKING_DIR}/.server-${server_name}.generated"
@@ -487,8 +482,8 @@ gen_client_config() {
       fi
     fi
   else
-    if find ${WORKING_DIR} -maxdepth 1 | egrep -q "client-.*\.conf$"; then
-      client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WORKING_DIR}/client-*.conf)
+    if find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 | egrep -q "client-.*\.conf$"; then
+      client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WGCG_CLIENT_CONFIGS_FOLDER}/client-*.conf)
       if [[ -n ${client_config_match} ]]; then
         echo -e "${RED}ERROR${NONE}: WG private IP address ${RED}${client_wg_ip}${NONE} already in use => ${BLUE}${client_config_match}${NONE}"
         return 1
@@ -531,7 +526,7 @@ EOF
 gen_qr() {
   local config_name="${1}"
   local output="${2}"
-  local config_path="${WORKING_DIR}/client-${config_name}.conf"
+  local config_path="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${config_name}.conf"
 
   if [[ ! -f ${config_path} ]]; then
     echo -e "${RED}ERROR${NONE}: Error while generating QR code, config file ${BLUE}${config_path}${NONE} does not exist!"
@@ -593,9 +588,9 @@ gen_client_config_batch() {
 wg_list_used_ips() {
   local ip_client_list
 
-  [[ ! -d ${WORKING_DIR} ]] && exit 0
+  [[ ! -d ${WGCG_CLIENT_CONFIGS_FOLDER} ]] && exit 0
 
-  for client_config in $(find ${WORKING_DIR} -maxdepth 1 -name "client-*.conf"); do
+  for client_config in $(find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 -name "client-*.conf"); do
     ip_client_list="${GREEN}$(awk -F'[ /]' '/^Address =/ {print $(NF-1)}' ${client_config})${NONE} => ${BLUE}${client_config}${NONE}\n${ip_client_list}"
   done
 
