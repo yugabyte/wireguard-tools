@@ -332,11 +332,11 @@ gen_keys() {
   local name_prefix="${1}"
   local public_key="${2}"
 
-  #local private_key="${WORKING_DIR}/${name_prefix}-private.key"
+  local private_key="${WORKING_DIR}/${name_prefix}-private.key"
   echo ${public_key} >"${WGCG_CLIENT_KEYS_FOLDER}/${name_prefix}-public.key"
   local preshared_key="${WORKING_DIR}/preshared.key"
 
-  #wg genkey | tee ${private_key} | wg pubkey > ${public_key}
+  wg genkey | tee ${private_key} | wg pubkey > ${public_key}
   [[ ! -f ${preshared_key} ]] && wg genpsk > ${preshared_key} 2> /dev/null
   chmod 600 ${private_key} ${preshared_key}
 }
@@ -493,7 +493,7 @@ gen_client_config() {
     fi
   fi
 
-  gen_keys client-${client_name} ${client_public_key}
+  #gen_keys client-${client_name} ${client_public_key}
 
   cat > ${client_config} <<EOF && chmod 600 ${client_config}
 [Interface]

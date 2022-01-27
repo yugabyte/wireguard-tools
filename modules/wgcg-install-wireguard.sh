@@ -11,7 +11,8 @@ echo
 
 # Installing wireguard kernel module and required dependencies
 yum update && yum install -y linux-headers-$(uname -r) epel-release firewalld
-yum config-manager --set-enabled PowerTools
+yum-config-manager --enable PowerTools
+yum install yum-plugin-copr
 yum copr enable jdoss/wireguard
 yum install wireguard-dkms wireguard-tools
 mkdir -p /etc/wireguard
