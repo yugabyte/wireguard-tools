@@ -330,10 +330,9 @@ remove_client_config() {
 # Generate preshared, server and client keys
 gen_keys() {
   local name_prefix="${1}"
-  local public_key="${2}"
 
   local private_key="${WORKING_DIR}/${name_prefix}-private.key"
-  echo ${public_key} >"${WGCG_CLIENT_KEYS_FOLDER}/${name_prefix}-public.key"
+  local public_key="${WORKING_DIR}/${name_prefix}-public.key"
   local preshared_key="${WORKING_DIR}/preshared.key"
 
   wg genkey | tee ${private_key} | wg pubkey > ${public_key}
