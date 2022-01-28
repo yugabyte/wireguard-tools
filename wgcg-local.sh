@@ -321,7 +321,7 @@ remove_client_config() {
 
   # Delete config and key files
   rm -f ${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}{.conf,.conf.png,.conf.asc}
-  rm -f ${WGCG_CLIENT_KEYS_FOLDER}/client-${client_name}.pub
+  rm -f ${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.pub
 
   echo -e "${GREEN}INFO${NONE}: Client config ${RED}${client_config}${NONE} has been successfully removed!"
 }
@@ -415,7 +415,7 @@ gen_client_config() {
   local client_allowed_ips="${7:-0.0.0.0/0}"
 
   local preshared_key="${WORKING_DIR}/preshared.pub"
-  local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/client-${client_name}.pub"
+  local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.pub"
   local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
   local server_public_key="${WORKING_DIR}/server-${server_name}-public.pub"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
