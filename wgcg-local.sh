@@ -211,7 +211,7 @@ encrypt() {
   local client_name="${1}"
   local passphrase="${2:-$(genpass)}"
 
-  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/${client_name}.conf"
   local client_config_asc="${client_config}.asc"
 
   if [[ ! -f ${client_config} ]]; then
@@ -241,7 +241,7 @@ encrypt() {
 decrypt() {
   local client_name="${1}"
 
-  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/${client_name}.conf"
   local client_config_asc="${client_config}.asc"
 
   if [[ ! -f ${client_config_asc} ]]; then
@@ -293,7 +293,7 @@ remove_client_config() {
   local client_name="${1}"
   local server_name="${2}"
 
-  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/${client_name}.conf"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
 
   if [[ -z ${client_name} ]] || [[ -z ${server_name} ]]; then
@@ -320,7 +320,7 @@ remove_client_config() {
   mv ${server_config}.backup ${server_config}
 
   # Delete config and key files
-  rm -f ${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}{.conf,.conf.png,.conf.asc}
+  rm -f ${WGCG_CLIENT_CONFIGS_FOLDER}/${client_name}{.conf,.conf.png,.conf.asc}
   rm -f ${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.key
 
   echo -e "${GREEN}INFO${NONE}: Client config ${RED}${client_config}${NONE} has been successfully removed!"
@@ -416,7 +416,7 @@ gen_client_config() {
 
   local preshared_key="${WORKING_DIR}/preshared.key"
   local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.key"
-  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
+  local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/${client_name}.conf"
   local server_public_key="${WORKING_DIR}/server-${server_name}-public.key"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
   local server_generated="${WORKING_DIR}/.server-${server_name}.generated"
@@ -482,8 +482,8 @@ gen_client_config() {
         return 1
       fi
     fi
-  elif find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 | egrep -q "client-.*\.conf$"; then
-    client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WGCG_CLIENT_CONFIGS_FOLDER}/client-*.conf)
+  elif find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 | egrep -q ".*\.conf$"; then
+    client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WGCG_CLIENT_CONFIGS_FOLDER}/*.conf)
     if [[ -n ${client_config_match} ]]; then
       echo -e "${RED}ERROR${NONE}: WG private IP address ${RED}${client_wg_ip}${NONE} already in use => ${BLUE}${client_config_match}${NONE}"
       return 1
@@ -491,8 +491,6 @@ gen_client_config() {
   else
     echo "${client_public_key_string}" > "${client_public_key_file}"
   fi
-
-  #gen_keys client-${client_name} ${client_public_key}
 
   cat > ${client_config} <<EOF && chmod 600 ${client_config}
 [Interface]
@@ -527,7 +525,7 @@ EOF
 gen_qr() {
   local config_name="${1}"
   local output="${2}"
-  local config_path="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${config_name}.conf"
+  local config_path="${WGCG_CLIENT_CONFIGS_FOLDER}/${config_name}.conf"
 
   if [[ ! -f ${config_path} ]]; then
     echo -e "${RED}ERROR${NONE}: Error while generating QR code, config file ${BLUE}${config_path}${NONE} does not exist!"
@@ -591,7 +589,7 @@ wg_list_used_ips() {
 
   [[ ! -d ${WGCG_CLIENT_CONFIGS_FOLDER} ]] && exit 0
 
-  for client_config in $(find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 -name "client-*.conf"); do
+  for client_config in $(find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 -name "*.conf"); do
     ip_client_list="${GREEN}$(awk -F'[ /]' '/^Address =/ {print $(NF-1)}' ${client_config})${NONE} => ${BLUE}${client_config}${NONE}\n${ip_client_list}"
   done
 
