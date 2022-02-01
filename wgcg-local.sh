@@ -321,7 +321,7 @@ remove_client_config() {
 
   # Delete config and key files
   rm -f ${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}{.conf,.conf.png,.conf.asc}
-  rm -f ${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.pub
+  rm -f ${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.key
 
   echo -e "${GREEN}INFO${NONE}: Client config ${RED}${client_config}${NONE} has been successfully removed!"
 }
@@ -331,9 +331,9 @@ remove_client_config() {
 gen_keys() {
   local name_prefix="${1}"
 
-  local private_key="${WORKING_DIR}/${name_prefix}-private.pub"
-  local public_key="${WORKING_DIR}/${name_prefix}-public.pub"
-  local preshared_key="${WORKING_DIR}/preshared.pub"
+  local private_key="${WORKING_DIR}/${name_prefix}-private.key"
+  local public_key="${WORKING_DIR}/${name_prefix}-public.key"
+  local preshared_key="${WORKING_DIR}/preshared.key"
 
   wg genkey | tee ${private_key} | wg pubkey > ${public_key}
   [[ ! -f ${preshared_key} ]] && wg genpsk > ${preshared_key} 2> /dev/null
@@ -353,7 +353,7 @@ gen_server_config() {
 
   [[ ! -d ${WORKING_DIR} ]] && mkdir -p ${WORKING_DIR}
 
-  local server_private_key="${WORKING_DIR}/server-${server_name}-private.pub"
+  local server_private_key="${WORKING_DIR}/server-${server_name}-private.key"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
   local server_generated="${WORKING_DIR}/.server-${server_name}.generated"
 
@@ -413,10 +413,10 @@ gen_client_config() {
   local client_dns_ips="${6:-1.1.1.1 1.0.0.1}"
   local client_allowed_ips="${7:-0.0.0.0/0}"
 
-  local preshared_key="${WORKING_DIR}/preshared.pub"
-  local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.pub"
+  local preshared_key="${WORKING_DIR}/preshared.key"
+  local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.key"
   local client_config="${WGCG_CLIENT_CONFIGS_FOLDER}/client-${client_name}.conf"
-  local server_public_key="${WORKING_DIR}/server-${server_name}-public.pub"
+  local server_public_key="${WORKING_DIR}/server-${server_name}-public.key"
   local server_config="${WORKING_DIR}/server-${server_name}.conf"
   local server_generated="${WORKING_DIR}/.server-${server_name}.generated"
 
