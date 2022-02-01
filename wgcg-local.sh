@@ -404,10 +404,9 @@ SKIP_ANSWER=false
 gen_client_config() {
   local client_name="${1}"
   local client_wg_ip="${2}"
-  local client_public_key="${3}"
-  local server_name="${4}"
-  local server_port="${5}"
-  local server_public_ip="${6}"
+  local server_name="${3}"
+  local server_port="${4}"
+  local server_public_ip="${5}"
   
   local server_wg_ip_cidr server_wg_ip cidr client_config_match server_config_match
 
@@ -647,8 +646,8 @@ case ${1} in
   ;;
   '-c'|'--add-client-config')
     shift
-    # client_name, client_wg_ip, client_public_key, server_name, server_port, server_public_ip
-    gen_client_config ${1:-''} ${2:-''} ${3:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
+    # client_name, client_wg_ip, server_name, server_port, server_public_ip
+    gen_client_config ${1:-''} ${2:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
     [[ ${?} -ne 0 ]] && exit 1
     # client_name
     gen_qr ${1}
