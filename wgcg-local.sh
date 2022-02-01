@@ -404,14 +404,15 @@ SKIP_ANSWER=false
 gen_client_config() {
   local client_name="${1}"
   local client_wg_ip="${2}"
-  local server_name="${3}"
-  local server_port="${4}"
-  local server_public_ip="${5}"
+  local client_public_key_string="${3}"
+  local server_name="${4}"
+  local server_port="${5}"
+  local server_public_ip="${6}"
   
   local server_wg_ip_cidr server_wg_ip cidr client_config_match server_config_match
 
-  local client_dns_ips="${6:-1.1.1.1 1.0.0.1}"
-  local client_allowed_ips="${7:-0.0.0.0/0}"
+  local client_dns_ips="${7:-1.1.1.1 1.0.0.1}"
+  local client_allowed_ips="${8:-0.0.0.0/0}"
 
   local preshared_key="${WORKING_DIR}/preshared.key"
   local client_public_key_file="${WGCG_CLIENT_KEYS_FOLDER}/${client_name}.key"
@@ -481,14 +482,14 @@ gen_client_config() {
         return 1
       fi
     fi
-  else
-    if find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 | egrep -q "client-.*\.conf$"; then
-      client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WGCG_CLIENT_CONFIGS_FOLDER}/client-*.conf)
-      if [[ -n ${client_config_match} ]]; then
-        echo -e "${RED}ERROR${NONE}: WG private IP address ${RED}${client_wg_ip}${NONE} already in use => ${BLUE}${client_config_match}${NONE}"
-        return 1
-      fi
+  elif find ${WGCG_CLIENT_CONFIGS_FOLDER} -maxdepth 1 | egrep -q "client-.*\.conf$"; then
+    client_config_match=$(grep -l "^Address = ${client_wg_ip}" ${WGCG_CLIENT_CONFIGS_FOLDER}/client-*.conf)
+    if [[ -n ${client_config_match} ]]; then
+      echo -e "${RED}ERROR${NONE}: WG private IP address ${RED}${client_wg_ip}${NONE} already in use => ${BLUE}${client_config_match}${NONE}"
+      return 1
     fi
+  else
+    echo "${client_public_key_string}" > "${client_public_key_file}"
   fi
 
   #gen_keys client-${client_name} ${client_public_key}
@@ -512,7 +513,7 @@ EOF
 ### ${client_name} - START
 [Peer]
 # friendly_name = ${client_name}
-PublicKey = $(head -1 ${client_public_key_file})
+PublicKey = ${client_public_key_string}
 PresharedKey = $(head -1 ${preshared_key})
 AllowedIPs = ${client_wg_ip}/32
 ### ${client_name} - END
@@ -552,7 +553,7 @@ BATCH_REWRITE=false
 gen_client_config_batch() {
   local client_batch_csv_file="${1%%:*}"
   local client_batch_csv_file_action="${1##*:}"
-  local client_name client_wg_ip client_wg_gen_action
+  local client_name client_wg_ip client_wg_gen_action client_public_key_string
 
   if [[ ! -f ${client_batch_csv_file} ]]; then
     echo -e "${RED}ERROR${NONE}: Client batch file ${BLUE}${client_batch_csv_file}${NONE} does not exist, please create one first!"
@@ -560,7 +561,7 @@ gen_client_config_batch() {
   fi
 
   SKIP_ANSWER=true
-  while IFS=',' read client_name client_wg_ip client_wg_gen_action; do
+  while IFS=',' read client_name client_wg_ip client_public_key_string client_wg_gen_action; do
     BATCH_REWRITE=false
     case ${client_batch_csv_file_action} in
       "rewrite")
@@ -577,7 +578,7 @@ gen_client_config_batch() {
       ;;
     esac
 
-    gen_client_config ${client_name} ${client_wg_ip} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
+    gen_client_config ${client_name} ${client_wg_ip} ${client_public_key_string} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
     [[ ${?} -ne 0 ]] && continue
     gen_qr ${client_name}
   done < <(egrep -v '^(#|$)' ${client_batch_csv_file})
@@ -646,8 +647,8 @@ case ${1} in
   ;;
   '-c'|'--add-client-config')
     shift
-    # client_name, client_wg_ip, server_name, server_port, server_public_ip
-    gen_client_config ${1:-''} ${2:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
+    # client_name, client_wg_ip, clien_public_key_string, server_name, server_port, server_public_ip
+    gen_client_config ${1:-''} ${2:-''} ${3:-''} ${SERVER_NAME} ${SERVER_PORT} ${SERVER_PUBLIC_IP} "${CLIENT_DNS_IPS}" "${CLIENT_ALLOWED_IPS}"
     [[ ${?} -ne 0 ]] && exit 1
     # client_name
     gen_qr ${1}
