@@ -25,18 +25,16 @@ SERVER_PORT=${WGCG_SERVER_PORT}
 # Server's public IP or FQDN
 # To discover server's public IP use: curl -sSL https://ifconfig.co
 SERVER_PUBLIC_IP=${WGCG_SERVER_PUBLIC_IP}
-# SSH server IP address (default: ${WGCG_SERVER_PUBLIC_IP})
-# Note: This option can be used in case SSH server is listening on different IP address,
-#       if not specified, ${WGCG_SERVER_PUBLIC_IP} will be used instead
-SERVER_SSH_IP=${WGCG_SERVER_SSH_IP}
-# SSH server port (default: 22)
-SERVER_SSH_PORT=${WGCG_SERVER_SSH_PORT}
 # Space separated list of DNS IPs (default: 1.1.1.1 1.0.0.1)
 CLIENT_DNS_IPS=${WGCG_CLIENT_DNS_IPS}
 # Space separated list of subnets (with CIDR) required for split-tunneling (default: 0.0.0.0/0)
 CLIENT_ALLOWED_IPS=${WGCG_CLIENT_ALLOWED_IPS}
 # Working directory where all generated files will be stored
 WORKING_DIR=${WGCG_WORKING_DIR}
+# Directory where all the generated client configs will be stored
+WGCG_CLIENT_CONFIGS_FOLDER="${WORKING_DIR}/client_configs"
+# Directory where all the supplied public keys for clients will be stored
+WGCG_CLIENT_KEYS_FOLDER="${WORKING_DIR}/public_keys"
 
 # Don't show colors by default, set a flag for showing colors
 if [ "$SHOW_COLORED_OUTPUT" = true ]; then
@@ -99,12 +97,11 @@ help() {
   echo -e "  WGCG_SERVER_WG_IP=${GREEN}\"${SERVER_WG_IP}\"${NONE}"
   echo -e "  WGCG_SERVER_PORT=${GREEN}\"${SERVER_PORT}\"${NONE}"
   echo -e "  WGCG_SERVER_PUBLIC_IP=${GREEN}\"${SERVER_PUBLIC_IP}\"${NONE}"
-  [[ -n ${SERVER_SSH_IP} ]] && echo -e "  WGCG_SERVER_SSH_IP=${GREEN}\"${SERVER_SSH_IP}\"${NONE}"
-  [[ -n ${SERVER_SSH_PORT} ]] && echo -e "  WGCG_SERVER_SSH_PORT=${GREEN}\"${SERVER_SSH_PORT}\"${NONE}"
   [[ -n ${CLIENT_DNS_IPS} ]] && echo -e "  WGCG_CLIENT_DNS_IPS=${GREEN}\"${CLIENT_DNS_IPS}\"${NONE}"
   [[ -n ${CLIENT_ALLOWED_IPS} ]] && echo -e "  WGCG_CLIENT_ALLOWED_IPS=${GREEN}\"${CLIENT_ALLOWED_IPS}\"${NONE}"
-  [[ -n ${SERVER_SSH_KEY_FILE} ]] && echo -e "  SERVER_SSH_KEY_FILE=${GREEN}\"${SERVER_SSH_KEY_FILE}\"${NONE}"
   echo -e "  WGCG_WORKING_DIR=${GREEN}\"${WORKING_DIR}\"${NONE}"
+  [[ -n ${WGCG_CLIENT_KEYS_FOLDER} ]] && echo -e "  WGCG_CLIENT_KEYS_FOLDER=${GREEN}\"${WGCG_CLIENT_KEYS_FOLDER}\"${NONE}"
+  [[ -n ${WGCG_CLIENT_CONFIGS_FOLDER} ]] && echo -e "  WGCG_CLIENT_CONFIGS_FOLDER=${GREEN}\"${WGCG_CLIENT_CONFIGS_FOLDER}\"${NONE}"
 }
 
 
@@ -487,10 +484,10 @@ gen_client_config() {
     if [[ -n ${client_config_match} ]]; then
       echo -e "${RED}ERROR${NONE}: WG private IP address ${RED}${client_wg_ip}${NONE} already in use => ${BLUE}${client_config_match}${NONE}"
       return 1
-    fi
-  else
-    echo "${client_public_key_string}" > "${client_public_key_file}"
+    fi  
   fi
+
+  echo "${client_public_key_string}" > "${client_public_key_file}"
 
   cat > ${client_config} <<EOF && chmod 600 ${client_config}
 [Interface]
