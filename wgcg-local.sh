@@ -614,7 +614,7 @@ wg_sync() {
     exit 1
   fi
 
-  sudo cat ${server_config} > /etc/wireguard/${server_name}.conf && sudo chmod 600 /etc/wireguard/${server_name}.conf
+  cat ${server_config} > /etc/wireguard/${server_name}.conf && sudo chmod 600 /etc/wireguard/${server_name}.conf
   if [[ ${?} -eq 0 ]]; then
    
     if ! sudo systemctl is-enabled wg-quick@${server_name}.service &> /dev/null; then
@@ -622,7 +622,7 @@ wg_sync() {
     fi
 
     if sudo systemctl is-active wg-quick@${server_name}.service &> /dev/null; then
-      sudo wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf) #TODO - Update this line for centos
+      wg syncconf ${server_name} <(sed '/^Address =/d;/^DNS =/d;/^MTU =/d;/^PreUp =/d;/^PostUp =/d;/^PreDown =/d;/^PostDown =/d;/^SaveConfig =/d' /etc/wireguard/${server_name}.conf)
     fi
     
   else
@@ -682,7 +682,7 @@ case ${1} in
   '-S'|'--sync')
     shift
     # server_name, server_ssh_ip, server_ssh_port
-    wg_sync ${SERVER_NAME} ${SERVER_SSH_IP:-${SERVER_PUBLIC_IP}} ${SERVER_SSH_PORT}
+    wg_sync ${SERVER_NAME}
   ;;
   *)
     help
